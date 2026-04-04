@@ -10,6 +10,7 @@ namespace eGKGui
             {
                 components?.Dispose();
                 _smartCardService?.Dispose();
+                _httpServer?.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -43,6 +44,11 @@ namespace eGKGui
             btnReadBinary = new Button();
             btnGetResponse = new Button();
 
+            grpServer = new GroupBox();
+            btnStartServer = new Button();
+            btnStopServer = new Button();
+            lblServerStatus = new Label();
+
             grpResponse = new GroupBox();
             rtbResponse = new RichTextBox();
             btnClear = new Button();
@@ -70,76 +76,52 @@ namespace eGKGui
             btnRefresh.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnRefresh.Click += BtnRefresh_Click;
 
-            btnConnect.Text = "Connect";
-            btnConnect.Location = new Point(687, 21);
-            btnConnect.Size = new Size(80, 25);
-            btnConnect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnect.Click += BtnConnect_Click;
+            grpReader.Controls.AddRange([lblReader, cmbReaders, btnRefresh]);
 
-            btnDisconnect.Text = "Disconnect";
-            btnDisconnect.Location = new Point(775, 21);
-            btnDisconnect.Size = new Size(88, 25);
-            btnDisconnect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnDisconnect.Enabled = false;
-            btnDisconnect.Click += BtnDisconnect_Click;
-
-            grpReader.Controls.AddRange([lblReader, cmbReaders, btnRefresh, btnConnect, btnDisconnect]);
-
-            // ── GroupBox: Card Status ─────────────────────────────────────
-            grpStatus.Text = "Card Status";
-            grpStatus.Location = new Point(8, 74);
-            grpStatus.Size = new Size(904, 72);
-            grpStatus.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-
-            lblStatusCaption.Text = "Status:";
-            lblStatusCaption.Location = new Point(8, 24);
-            lblStatusCaption.Size = new Size(50, 23);
-            lblStatusCaption.TextAlign = ContentAlignment.MiddleLeft;
-
-            lblStatusValue.Text = "Not connected";
-            lblStatusValue.Location = new Point(62, 24);
-            lblStatusValue.Size = new Size(180, 23);
-            lblStatusValue.ForeColor = Color.Gray;
-
-            lblAtrCaption.Text = "ATR:";
-            lblAtrCaption.Location = new Point(250, 24);
-            lblAtrCaption.Size = new Size(32, 23);
-            lblAtrCaption.TextAlign = ContentAlignment.MiddleLeft;
-
-            lblAtrValue.Text = "—";
-            lblAtrValue.Location = new Point(286, 24);
-            lblAtrValue.Size = new Size(608, 23);
-            lblAtrValue.Font = new Font("Consolas", 9f);
-            lblAtrValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-
-            lblProtocolCaption.Text = "Protocol:";
-            lblProtocolCaption.Location = new Point(8, 48);
-            lblProtocolCaption.Size = new Size(60, 23);
-            lblProtocolCaption.TextAlign = ContentAlignment.MiddleLeft;
-
-            lblProtocolValue.Text = "—";
-            lblProtocolValue.Location = new Point(72, 48);
-            lblProtocolValue.Size = new Size(120, 23);
-
-            grpStatus.Controls.AddRange([lblStatusCaption, lblStatusValue, lblAtrCaption, lblAtrValue, lblProtocolCaption, lblProtocolValue]);
+          
 
             // ── GroupBox: APDU Command ────────────────────────────────────
-            grpCommand.Text = "APDU Command";
-            grpCommand.Location = new Point(8, 154);
-            grpCommand.Size = new Size(904, 88);
+            grpCommand.Text = "Debug";
+            grpCommand.Location = new Point(8, 74);
+            grpCommand.Size = new Size(904, 60);
             grpCommand.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
-            btnSelectEfGdo.Text = "eGK";
-            btnSelectEfGdo.Location = new Point(8, 54);
+            btnSelectEfGdo.Text = "Test read eGK";
+            btnSelectEfGdo.Location = new Point(8, 25);
             btnSelectEfGdo.Size = new Size(300, 25);
             btnSelectEfGdo.Click += BtnReadeGK;
 
 
-            grpCommand.Controls.AddRange([lblApduCaption,btnSelectEfGdo]);
+            grpCommand.Controls.Add(btnSelectEfGdo);
+
+            // ── GroupBox: HTTP Server ─────────────────────────────────────
+            grpServer.Text = "HTTP Server";
+            grpServer.Location = new Point(8, 142);
+            grpServer.Size = new Size(904, 56);
+            grpServer.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            btnStartServer.Text = "Start Server";
+            btnStartServer.Location = new Point(8, 21);
+            btnStartServer.Size = new Size(100, 25);
+            btnStartServer.Click += BtnStartServer_Click;
+
+            btnStopServer.Text = "Stop Server";
+            btnStopServer.Location = new Point(116, 21);
+            btnStopServer.Size = new Size(100, 25);
+            btnStopServer.Enabled = false;
+            btnStopServer.Click += BtnStopServer_Click;
+
+            lblServerStatus.Text = "Stopped";
+            lblServerStatus.Location = new Point(228, 21);
+            lblServerStatus.Size = new Size(300, 25);
+            lblServerStatus.ForeColor = Color.Gray;
+            lblServerStatus.TextAlign = ContentAlignment.MiddleLeft;
+
+            grpServer.Controls.AddRange([btnStartServer, btnStopServer, lblServerStatus]);
 
             // ── GroupBox: Response Log ────────────────────────────────────
             grpResponse.Text = "Response Log";
-            grpResponse.Location = new Point(8, 250);
+            grpResponse.Location = new Point(8, 206);
             grpResponse.Size = new Size(904, 400);
             grpResponse.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
 
@@ -165,7 +147,7 @@ namespace eGKGui
             this.Text = "eGK Smart Card Tool";
             this.ClientSize = new Size(920, 658);
             this.MinimumSize = new Size(700, 600);
-            this.Controls.AddRange([grpReader, grpStatus, grpCommand, grpResponse]);
+            this.Controls.AddRange([grpReader, grpCommand, grpServer, grpResponse]);
         }
 
         #region Fields
@@ -191,6 +173,10 @@ namespace eGKGui
         private Button btnSelectEfGdo = null!;
         private Button btnReadBinary = null!;
         private Button btnGetResponse = null!;
+        private GroupBox grpServer = null!;
+        private Button btnStartServer = null!;
+        private Button btnStopServer = null!;
+        private Label lblServerStatus = null!;
         private GroupBox grpResponse = null!;
         private RichTextBox rtbResponse = null!;
         private Button btnClear = null!;

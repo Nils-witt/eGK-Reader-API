@@ -5,6 +5,7 @@ namespace eGKGui;
 public partial class Form1 : Form
 {
     private readonly SmartCardService _smartCardService = new();
+    private EgkHttpServer? _httpServer;
 
     public Form1()
     {
@@ -17,6 +18,7 @@ public partial class Form1 : Form
     private void Form1_Load(object? sender, EventArgs e)
     {
         RefreshReaders();
+        BtnStartServer_Click(sender, e);
     }
 
     // ── Reader management ─────────────────────────────────────────────────
@@ -92,39 +94,37 @@ public partial class Form1 : Form
         Log("Disconnected.");
     }
 
-    // ── APDU transmission ─────────────────────────────────────────────────
 
-    private void TxtApdu_KeyDown(object? sender, KeyEventArgs e)
+
+    // ── HTTP Server ───────────────────────────────────────────────────────
+
+    private void BtnStartServer_Click(object? sender, EventArgs e)
     {
-        if (e.KeyCode == Keys.Enter && btnSend.Enabled)
+        try
         {
-            BtnSend_Click(sender, e);
-            e.SuppressKeyPress = true;
+            _httpServer = new EgkHttpServer();
+            _httpServer.Start();
+            btnStartServer.Enabled = false;
+            btnStopServer.Enabled = true;
+            lblServerStatus.Text = "Running on http://localhost:5000/";
+            lblServerStatus.ForeColor = Color.Green;
+            Log("HTTP server started on http://localhost:5000/egk");
+        }
+        catch (Exception ex)
+        {
+            Log($"Failed to start HTTP server: {ex.Message}", LogKind.Error);
         }
     }
 
-    private void BtnSend_Click(object? sender, EventArgs e)
+    private void BtnStopServer_Click(object? sender, EventArgs e)
     {
-        string raw = txtApdu.Text.Trim();
-        if (string.IsNullOrWhiteSpace(raw)) return;
-
-        byte[]? apdu = ParseHex(raw);
-        if (apdu is null)
-        {
-            Log("Invalid APDU — enter bytes as hex (spaces optional, e.g. 00A40400 or 00 A4 04 00).", LogKind.Error);
-            return;
-        }
-
-        try
-        {
-            Log($">> {FormatHex(apdu)}");
-            byte[] response = _smartCardService.Transmit(apdu);
-            LogResponse(response);
-        }
-        catch (SmartCardException ex)
-        {
-            Log($"Transmit error: {ex.Message}", LogKind.Error);
-        }
+        _httpServer?.Dispose();
+        _httpServer = null;
+        btnStartServer.Enabled = true;
+        btnStopServer.Enabled = false;
+        lblServerStatus.Text = "Stopped";
+        lblServerStatus.ForeColor = Color.Gray;
+        Log("HTTP server stopped.");
     }
 
     private void BtnReadeGK(object? sender, EventArgs e)
@@ -134,45 +134,20 @@ public partial class Form1 : Form
         string[] readerNames = ctx.GetReaders();
         if (readerNames.Length == 0) throw new Exception("No reader found.");
         Log($"Found {readerNames.Length} readers");
-        Log($"Selecting first: {readerNames[0]}");
-
-        using var reader = ctx.ConnectReader(readerNames[0], SCardShareMode.Shared, SCardProtocol.Any);
+        
+        if (cmbReaders.SelectedItem is not string readerName)
+        {
+            Log("No Reader selected");
+            return;
+        }
+        Log($"Selecting: {readerName}");
+        using var reader = ctx.ConnectReader(readerName, SCardShareMode.Shared, SCardProtocol.Any);
         var egk = new EgkReader(reader);
         HealthCardData data = egk.GetData();
 
        Log($"Name: {data.FirstName} {data.LastName}");
        Log($"Born: {data.Birthdate}");
 
-    }
-
-    private void LogResponse(byte[] response)
-    {
-        string hex = FormatHex(response);
-        Log($"<< {hex}");
-
-        if (response.Length >= 2)
-        {
-            byte sw1 = response[^2], sw2 = response[^1];
-            string desc = GetSwDescription(sw1, sw2);
-            string swLine = $"   SW: {sw1:X2} {sw2:X2}";
-            if (desc.Length > 0) swLine += $"  ({desc})";
-            Log(swLine, sw1 == 0x90 ? LogKind.Success : LogKind.Warning);
-
-            if (response.Length > 2)
-            {
-                string data = FormatHex(response[..^2]);
-                Log($"   Data ({response.Length - 2} bytes): {data}");
-            }
-        }
-    }
-
-    // ── Quick APDU helpers ────────────────────────────────────────────────
-
-    private void SetQuickApdu(string hex)
-    {
-        txtApdu.Text = hex;
-        txtApdu.SelectionStart = hex.Length;
-        txtApdu.Focus();
     }
 
     // ── Clear log ─────────────────────────────────────────────────────────
